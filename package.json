@@ -1,0 +1,28 @@
+{
+  "name": "covid19-testkit-maps-crawler",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:taichunmin/covid19-testkit-maps-crawler.git",
+  "author": "taichunmin <taichunmin@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.27.2",
+    "dayjs": "^1.11.1",
+    "joi": "^17.6.0",
+    "lodash": "^4.17.21",
+    "papaparse": "^5.3.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.14.0",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-n": "^15.2.0",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.0.0"
+  },
+  "scripts": {
+    "build": "node index.js",
+    "lint": "eslint --ext .js,.pug --fix .",
+    "repl": "node --experimental-repl-await repl.js"
+  }
+}
