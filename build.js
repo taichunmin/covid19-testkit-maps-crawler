@@ -13,6 +13,11 @@ exports.build = async () => {
     path.resolve(__dirname, 'dist/opens.csv'),
     Papa.unparse(await exports.fetchOpens(), { header: true })
   )
+  // 快篩實名制凌晨備份
+  await fsPromises.writeFile(
+    path.resolve(__dirname, 'dist/stores0430.csv'),
+    Papa.unparse(await exports.fetchStores(), { header: true })
+  )
 }
 
 exports.fetchOpens = async () => {
@@ -41,6 +46,50 @@ exports.fetchOpens = async () => {
   }
   if (errCnt) console.log(`fetchOpens 有 ${errCnt} 筆錯誤資料`)
   return opens
+}
+
+exports.fetchStores = async () => {
+  const rows = await this.getCsv('https://data.nhi.gov.tw/resource/Nhi_Fst/Fstdata.csv')
+  const stores = []
+  const schema = Joi.object({
+    addr: Joi.string().trim().required(),
+    amount: Joi.number().integer().min(0).required(),
+    id: Joi.string().alphanum().required(),
+    lat: Joi.number().min(21).max(28).empty('0').required(),
+    lng: Joi.number().min(117).max(123).empty('0').required(),
+    name: Joi.string().trim().required(),
+    notice: Joi.string().trim().empty(Joi.any().equal('-', '')).default(''),
+    tel: Joi.string().trim().required(),
+    testkit: Joi.string().trim().required(),
+    updatedAt: Joi.any().required(),
+  })
+  const CHAR_MAP = _.zipObject('０１２３４５６７８９／：；（）～〜。\n'.split(''), '0123456789/:;()~~;;'.split(''))
+  const strtr = (str, charmap) => _.map(str, c => _.get(charmap, [c], c)).join('')
+  let errCnt = 0
+  for (const row of rows) {
+    try {
+      const updatedAt = dayjs(row['來源資料時間'], 'YYYY/MM/DD HH:mm:ssZZ')
+      if (!updatedAt.isValid()) throw new Error('時間錯誤')
+      const store = await schema.validateAsync({
+        addr: row['醫事機構地址'],
+        amount: row['快篩試劑截至目前結餘存貨數量'],
+        id: row['醫事機構代碼'],
+        lat: row['緯度'],
+        lng: row['經度'],
+        name: row['醫事機構名稱'],
+        notice: row['備註'],
+        tel: row['醫事機構電話'],
+        testkit: row['廠牌項目'],
+        updatedAt: updatedAt.unix(),
+      }, { stripUnknown: true })
+      for (const k of ['addr', 'notice', 'tel']) store[k] = strtr(store[k], CHAR_MAP)
+      stores.push(store)
+    } catch (err) {
+      errCnt++
+    }
+  }
+  if (errCnt) console.log(`fetchStores 有 ${errCnt} 筆錯誤資料`)
+  return stores
 }
 
 exports.getCsv = async (url, cachetime = 3e4) => {
