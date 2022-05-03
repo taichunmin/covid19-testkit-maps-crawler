@@ -8,16 +8,16 @@ const path = require('path')
 
 exports.build = async () => {
   await fsPromises.mkdir(path.resolve(__dirname, 'dist'), { recursive: true })
-  // 診所看診時間
-  await fsPromises.writeFile(
-    path.resolve(__dirname, 'dist/opens.csv'),
-    Papa.unparse(await exports.fetchOpens(), { header: true })
-  )
-  // 快篩實名制凌晨備份
-  await fsPromises.writeFile(
-    path.resolve(__dirname, 'dist/stores0430.csv'),
-    Papa.unparse(await exports.fetchStores(), { header: true })
-  )
+  await Promise.all([
+    fsPromises.writeFile( // 診所看診時間
+      path.resolve(__dirname, 'dist/opens.csv'),
+      Papa.unparse(await exports.fetchOpens(), { header: true })
+    ),
+    fsPromises.writeFile( // 快篩實名制凌晨備份
+      path.resolve(__dirname, 'dist/stores0430.csv'),
+      Papa.unparse(await exports.fetchStores(), { header: true })
+    ),
+  ])
 }
 
 exports.fetchOpens = async () => {
