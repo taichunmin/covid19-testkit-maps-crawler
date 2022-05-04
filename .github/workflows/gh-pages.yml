@@ -40,7 +40,7 @@ jobs:
     - name: 編譯網頁
       uses: nick-fields/retry@v2
       with:
-        timeout_seconds: 15
+        timeout_seconds: 600
         max_attempts: 3
         retry_on: error
         command: yarn build
