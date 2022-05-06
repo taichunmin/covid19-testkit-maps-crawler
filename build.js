@@ -6,6 +6,8 @@ const Joi = require('joi')
 const Papa = require('papaparse')
 const path = require('path')
 
+dayjs.extend(require('dayjs/plugin/utc'))
+
 exports.build = async () => {
   await fsPromises.mkdir(path.resolve(__dirname, 'dist'), { recursive: true })
   await Promise.all([
@@ -48,7 +50,13 @@ exports.fetchOpens = async () => {
   return opens
 }
 
-exports.fetchStores = async () => {
+exports.fetchOldStores = async () => {
+  const rows = await this.getCsv('https://taichunmin.idv.tw/covid19-testkit-maps-crawler/stores0430.csv')
+  const tsToday = dayjs().utcOffset(8).startOf('day')
+  return _.filter(rows, row => dayjs.unix(row.updatedAt) > tsToday)
+}
+
+exports.fetchNhiStores = async () => {
   const rows = await this.getCsv('https://data.nhi.gov.tw/resource/Nhi_Fst/Fstdata.csv')
   const stores = []
   const schema = Joi.object({
@@ -68,7 +76,7 @@ exports.fetchStores = async () => {
   let errCnt = 0
   for (const row of rows) {
     try {
-      const updatedAt = dayjs(row['來源資料時間'], 'YYYY/MM/DD HH:mm:ssZZ')
+      const updatedAt = dayjs(`${row['來源資料時間']}+0800`, 'YYYY/MM/DD HH:mm:ssZZ')
       if (!updatedAt.isValid()) throw new Error('時間錯誤')
       const store = await schema.validateAsync({
         addr: row['醫事機構地址'],
@@ -88,8 +96,25 @@ exports.fetchStores = async () => {
       errCnt++
     }
   }
-  if (errCnt) console.log(`fetchStores 有 ${errCnt} 筆錯誤資料`)
+  if (errCnt) console.log(`fetchNhiStores 有 ${errCnt} 筆錯誤資料`)
   return stores
+}
+
+exports.fetchStores = async () => {
+  const [nhiStores, oldStores] = await Promise.all([
+    exports.fetchNhiStores(),
+    exports.fetchOldStores(),
+  ])
+  const mergedStores = new Map()
+  for (const store of [...oldStores, ...nhiStores]) {
+    const tmp = mergedStores.get(store.id) ?? {}
+    mergedStores.set(store.id, {
+      ...tmp,
+      ...store,
+      amount: Math.max(store.amount, _.toSafeInteger(tmp.amount)),
+    })
+  }
+  return [...mergedStores.values()]
 }
 
 exports.getCsv = async (url, cachetime = 3e4) => {
