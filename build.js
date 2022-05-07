@@ -53,7 +53,10 @@ exports.fetchOpens = async () => {
 exports.fetchOldStores = async () => {
   const rows = await this.getCsv('https://taichunmin.idv.tw/covid19-testkit-maps-crawler/stores0430.csv')
   const tsToday = dayjs().utcOffset(8).startOf('day')
-  return _.filter(rows, row => dayjs.unix(row.updatedAt) > tsToday)
+  for (const row of rows) {
+    if (dayjs.unix(row.updatedAt) < tsToday) row.max = 0 // 非今天的數量要直接忽略
+  }
+  return rows
 }
 
 exports.fetchNhiStores = async () => {
